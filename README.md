@@ -75,38 +75,38 @@ This included:
 
 The EDA phase provided the foundation for informed preprocessing decisions and helped guide the modeling strategy.
 
-![](https://github.com/amiyaranjan20-lgtm/MSBA_Capstone_Mastercontrol/blob/main/images/069dac74-2aef-46aa-8058-4598db6d1969.png)
+![](/images/069dac74-2aef-46aa-8058-4598db6d1969.png)
 
 
-![](https://github.com/amiyaranjan20-lgtm/MSBA_Capstone_Mastercontrol/blob/main/images/22c9c683-25b8-4887-b311-77f0d471d2a3.png)
+![](/images/22c9c683-25b8-4887-b311-77f0d471d2a3.png)
 
-![](https://github.com/amiyaranjan20-lgtm/MSBA_Capstone_Mastercontrol/blob/main/images/2a67e317-4ec1-4186-b4b6-3c0fe743a99c.png)
-
-
-![](https://github.com/amiyaranjan20-lgtm/MSBA_Capstone_Mastercontrol/blob/main/images/2e7eee65-59a7-4319-b0f0-16146f6b9c62.png)
+![](/images/2a67e317-4ec1-4186-b4b6-3c0fe743a99c.png)
 
 
-![](https://github.com/amiyaranjan20-lgtm/MSBA_Capstone_Mastercontrol/blob/main/images/4cd0375e-b9de-457f-9291-a91cc759cc8b.png)
+![](/images/2e7eee65-59a7-4319-b0f0-16146f6b9c62.png)
 
 
-![](https://github.com/amiyaranjan20-lgtm/MSBA_Capstone_Mastercontrol/blob/main/images/a1342a16-e24b-4195-b7a2-24411441ee92.png)
+![](/images/4cd0375e-b9de-457f-9291-a91cc759cc8b.png)
 
 
-![](https://github.com/amiyaranjan20-lgtm/MSBA_Capstone_Mastercontrol/blob/main/images/abcd9bf5-a790-4d7a-90e3-6e96fdc856f5.png)
+![](/images/a1342a16-e24b-4195-b7a2-24411441ee92.png)
 
 
-
-![](https://github.com/amiyaranjan20-lgtm/MSBA_Capstone_Mastercontrol/blob/main/images/c9f68d5b-5649-4394-a0a1-734131f3622a.png)
-
-
-![](https://github.com/amiyaranjan20-lgtm/MSBA_Capstone_Mastercontrol/blob/main/images/de5d1f45-48c2-47d8-ab48-0a4ed25ceb30.png)
+![](/images/abcd9bf5-a790-4d7a-90e3-6e96fdc856f5.png)
 
 
 
-![](https://github.com/amiyaranjan20-lgtm/MSBA_Capstone_Mastercontrol/blob/main/images/f813f15e-b821-43ba-ade5-76f9de9d28c6.png)
+![](/images/c9f68d5b-5649-4394-a0a1-734131f3622a.png)
 
 
-![](https://github.com/amiyaranjan20-lgtm/MSBA_Capstone_Mastercontrol/blob/main/images/fba53c82-28bb-4729-8074-a29d56866a7f.png)
+![](/images/de5d1f45-48c2-47d8-ab48-0a4ed25ceb30.png)
+
+
+
+![](/images/f813f15e-b821-43ba-ade5-76f9de9d28c6.png)
+
+
+![](/images/fba53c82-28bb-4729-8074-a29d56866a7f.png)
 
 
 
