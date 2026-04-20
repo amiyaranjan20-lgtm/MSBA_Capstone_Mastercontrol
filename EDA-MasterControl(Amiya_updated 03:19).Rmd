@@ -1,0 +1,1247 @@
+---
+title: "Exploratory Data Analysis: MasterControl QAL Lead Progression (Mx vs Qx)"
+author: "Amiya Ranjan Sahoo"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  html_document:
+    theme: readable
+    highlight: tango
+    number_sections: yes
+    toc: yes
+    toc_depth: 3
+    toc_float: true
+    code_folding: show
+    df_print: paged
+    fig_width: 10
+    fig_height: 6
+editor_options:
+  chunk_output_type: console
+---
+
+```{r}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+
+
+# 1. Introduction
+
+MasterControl provides enterprise software solutions to life sciences organizations through two primary product lines: Qx, focused on quality management systems, and Mx, designed to support manufacturing operations. While Qx has demonstrated strong market performance with higher lead progression rates, Mx has consistently underperformed relative to the company baseline.
+
+The objective of this exploratory data analysis (EDA) is to examine the structure, quality, and characteristics of the QAL (Qualified Account Lead) dataset to better understand the underlying patterns associated with lead progression. In particular, this analysis focuses on identifying differences in progression behavior across product lines, industries, manufacturing models, organizational tiers, and buyer personas.
+
+This EDA serves as the foundational phase of the data mining process. The primary goals of this stage are:
+	•	To understand the overall shape and structure of the dataset
+	•	To assess data quality, including missing values and duplicate records
+	•	To evaluate variable distributions and category imbalance
+	•	To examine lead progression behavior across segments
+	•	To prepare a clean and modeling-ready dataset
+
+The insights derived from this analysis will guide the development of a predictive modeling framework aimed at improving conversion performance for the Mx product line and supporting more targeted outbound strategies.
+
+
+
+# 2. Business Problem Statement
+
+MasterControl provides enterprise software solutions to life sciences organizations through two primary product lines: Qx, focused on quality management systems, and Mx, focused on manufacturing operations. While Qx demonstrates strong market adoption and a higher lead progression rate, the Mx product line underperforms relative to the company benchmark.
+
+Despite being strategically important for growth, Mx currently converts qualified leads at a significantly lower rate compared to Qx. The organization lacks clear visibility into:
+	•	Which industries are most suitable for Mx
+	•	Which manufacturing models demonstrate stronger conversion
+	•	Which company tiers or territories yield better outcomes
+	•	Which buyer personas (job titles and functions) are true decision-makers for manufacturing solutions
+
+As a result, outbound prospecting efforts may be broadly distributed across accounts that are not ideal candidates for Mx, reducing sales efficiency and overall conversion performance.
+
+The purpose of this analysis is to establish a data-driven understanding of lead progression patterns and identify characteristics that differentiate converting versus non-converting leads. This exploratory phase supports the development of a predictive framework that can guide improved targeting and segmentation strategies for the Mx product line.
+
+
+# 3. Data Description
+
+The dataset used in this analysis contains Qualified Account Lead (QAL) records spanning 2024–2025. Each row represents a lead interaction associated with a specific account and product solution.
+
+## 3.1 Dataset Overview
+	•	Observations: 16,644 rows
+	•	Variables: 14 columns
+	•	Data Type: Primarily categorical variables with one cohort date variable
+	•	Target Variable: Lead progression (derived from sales stage advancement)
+
+## 3.2 Key Variables
+
+Product Information
+	•	solution_rollup: Product line associated with the lead (Mx, Qx, Ax)
+	•	next_stage__c: Sales stage outcome (e.g., Recycled, SQL, SQO, Won)
+
+Account Characteristics
+	•	acct_target_industry: Industry classification
+	•	acct_manufacturing_model: Type of manufacturing model
+	•	acct_primary_site_function: Core functional role of the site
+	•	acct_tier_rollup: Account size or strategic tier
+	•	acct_territory_rollup: Geographic segmentation
+
+Contact Information
+	•	contact_lead_title: Job title of the lead
+	•	contact_lead_id: Unique identifier for the contact
+
+Campaign & Priority Variables
+	•	last_tactic_campaign_channel: Marketing channel source
+	•	priority: Lead priority classification
+
+Identifiers
+	•	qal_id: Unique identifier for each QAL record
+	•	qal_cohort_date: Date associated with the lead cohort
+
+## 3.3 Target Variable Construction
+
+Lead progression is defined as advancement to SQL (Sales Qualified Lead) or beyond (SQL, SQO, Won). A binary variable (progressed) will be created where:
+	•	1 = Lead progressed
+	•	0 = Lead did not progress
+
+This definition aligns with the business objective of improving movement to advanced sales stages and enables binary classification modeling in subsequent phases.
+
+
+
+# 4.Loading Libraries
+
+
+```{r setup, message=FALSE, warning=FALSE}
+
+# ---------------------------
+# Data Import & Manipulation
+# ---------------------------
+library(readr)        # Reading CSV files
+library(dplyr)        # Data manipulation
+library(tidyr)        # Data reshaping
+library(tibble)       # Modern data frames
+library(stringr)      # String processing
+library(forcats)      # Factor handling
+library(gt)           # For professional formatted tables
+
+# ---------------------------
+# Data Cleaning & Summary
+# ---------------------------
+library(janitor)      # Clean column names
+library(skimr)        # Detailed summary statistics
+library(lubridate)    # Date handling
+
+# ---------------------------
+# Missing Data Analysis
+# ---------------------------
+library(naniar)       # Missing data visualization
+
+# ---------------------------
+# Visualization
+# ---------------------------
+library(ggplot2)      # Core visualization package
+library(scales)       # Percent formatting
+library(ggthemes)     # Professional plot themes
+library(gridExtra)    # Arranging multiple plots
+
+# ---------------------------
+# Categorical Association
+# ---------------------------
+
+library(rcompanion)   # Cramer's V for categorical correlation
+
+# Global Plot Theme
+theme_set(theme_minimal())
+
+set.seed(123)
+
+```
+
+
+
+
+# 5. Loading Dataset
+
+
+```{r load-data}
+
+# Read CSV file
+qal_data <- read_csv("Mastercontrol QAL Performance.csv") %>%
+  clean_names()
+
+
+```
+
+
+## 5.1 Inspecting the dataset 
+
+```{r inspect-dataset}
+
+# 1. Dimensions
+
+dim_table <- data.frame(
+  Metric = c("Number of Rows", "Number of Columns"),
+  Value = c(nrow(qal_data), ncol(qal_data))
+)
+
+gt(dim_table)
+
+
+# 2. Column Names
+col_table <- data.frame(
+  Column_Names = colnames(qal_data)
+)
+
+gt(col_table)
+
+# 3. Preview Data
+preview_table_h <- head(qal_data, 10)
+preview_table_t <- tail(qal_data, 10)
+gt(preview_table_h)
+gt(preview_table_t)
+
+# 4.Structure & Data Types
+structure_table <- data.frame(
+  Column = names(qal_data),
+  Data_Type = sapply(qal_data, class),
+  Unique_Values = sapply(qal_data, function(x) length(unique(x)))
+)
+
+gt(structure_table)
+
+# 5.Summary Statistics
+
+numeric_data <- qal_data[, sapply(qal_data, is.numeric)]
+
+if (ncol(numeric_data) > 0) {
+
+  summary_table <- as.data.frame(summary(numeric_data))
+  summary_table <- cbind(Statistic = rownames(summary_table), summary_table)
+  rownames(summary_table) <- NULL
+  
+  gt(summary_table)
+
+} else {
+
+  message("No numeric variables found in the dataset.")
+
+}
+
+
+# 6. Detailed Professional Summary
+skim(qal_data)
+
+# 7. Missing Values Count
+
+missing_table <- data.frame(
+  Variable = names(qal_data),
+  Missing_Count = colSums(is.na(qal_data)),
+  Missing_Percent = round(colSums(is.na(qal_data)) / nrow(qal_data) * 100, 2)
+)
+
+gt(missing_table)
+
+# 8. Missing Values Percentage
+round(colSums(is.na(qal_data)) / nrow(qal_data) * 100, 2)
+
+# 9. Unique Values (Cardinality Check)
+
+cardinality_table <- data.frame(
+  Variable = names(qal_data),
+  Unique_Values = sapply(qal_data, function(x) length(unique(x)))
+)
+
+gt(cardinality_table)
+
+
+```
+
+
+
+##  5.2 Interpretation of Data Inspection Results
+
+The new dataset contains 16,644 observations and 14 variables, representing qualified account lead (QAL) interactions across MasterControl’s product lines. Each row corresponds to a distinct QAL record, confirmed by the uniqueness of the qal_id variable.
+
+### 1. Dataset Structure
+
+The dataset primarily consists of categorical variables, including product information, account characteristics, sales stage outcomes, and campaign channels. One variable (qal_cohort_date) represents a date field, and two columns serve as identifiers (qal_id and contact_lead_id).
+	•	qal_id is fully unique, indicating that each row represents a distinct lead record.
+	•	contact_lead_id has slightly fewer unique values than total rows, suggesting some contacts appear in multiple QAL records. This is expected behavior in sales datasets.
+
+Overall, the structural integrity of the dataset is sound.
+
+
+
+### 2. Missing Data Assessment
+
+Three variables exhibit relatively high missingness:
+	•	acct_primary_site_function (~41% missing)
+	•	acct_manufacturing_model (~41% missing)
+	•	contact_lead_title (~38% missing)
+
+These fields are business-critical segmentation variables. Removing rows with missing values would significantly reduce dataset size and potentially introduce bias. Therefore, missing values will be retained and encoded as “Unknown” during preprocessing to preserve analytical completeness.
+
+Other variables show minimal missingness (below 3%), indicating overall strong data completeness.
+
+
+
+### 3. Cardinality and Variable Complexity
+
+The dataset contains several low-cardinality variables such as:
+	•	solution_rollup (3 categories)
+	•	acct_target_industry (5 categories)
+	•	acct_tier_rollup (4 categories)
+	•	acct_territory_rollup (6 categories)
+
+These variables are well-structured and suitable for categorical analysis.
+
+However, contact_lead_title has 5,790 unique values, indicating extremely high cardinality. This variable cannot be used directly in modeling and will require feature engineering, such as grouping into seniority and functional categories, in later stages.
+
+
+### 4. Target-Related Field Review
+
+The next_stage_c variable contains 8 unique sales stage values and minimal missingness (~3%). This variable will be used to construct the binary target variable (lead progression), defined as advancement to SQL or beyond.
+
+The limited missingness in this field ensures reliable target construction.
+
+
+### 5. Overall Data Quality Assessment
+
+The dataset demonstrates:
+	•	Strong structural consistency
+	•	Clear identifier integrity
+	•	Acceptable levels of missing data
+	•	Manageable categorical distributions
+	•	One high-cardinality variable requiring transformation
+
+No major structural anomalies, duplication issues, or formatting errors were observed during inspection.
+
+
+
+### Conclusion of Inspection Phase
+
+The dataset is suitable for exploratory analysis and subsequent predictive modeling. While certain segmentation variables contain significant missing values, these can be addressed through appropriate encoding strategies without compromising dataset integrity. High-cardinality title information will require feature engineering to enable meaningful analysis.
+
+
+
+
+#  6. Creating the Target Variable
+
+-- First defining progression clearly:
+
+```{r}
+qal_data$progressed <- ifelse(
+  qal_data$next_stage_c %in% c("SQL", "SQO", "Won"),
+  1,
+  0
+)
+```
+
+
+
+*Checking Baseline :*
+
+```{r}
+table(qal_data$solution_rollup, qal_data$progressed)
+prop.table(table(qal_data$solution_rollup, qal_data$progressed), 1)
+```
+-- outcome:-
+	•	Qx ≈ ~19%
+	•	Mx ≈ ~12–13%
+	
+	
+	
+## Step 2: Handle Missing Values Strategically
+	
+
+```{r}
+qal_data$acct_primary_site_function[is.na(qal_data$acct_primary_site_function)] <- "Unknown"
+qal_data$acct_manufacturing_model[is.na(qal_data$acct_manufacturing_model)] <- "Unknown"
+qal_data$contact_lead_title[is.na(qal_data$contact_lead_title)] <- "Unknown"
+```
+
+
+## Step 3: Collapse Rare Categories
+
+
+```{r}
+table(qal_data$acct_target_industry)
+```
+
+
+## Step 4: Segment-Level EDA (Core Business Insight)
+
+*Analyze conversion by: Product*
+
+```{r}
+baseline_table <- qal_data %>%
+  group_by(solution_rollup) %>%
+  summarise(
+    Total_Leads = n(),
+    Conversions = sum(progressed),
+    Conversion_Rate = mean(progressed)
+  )
+
+baseline_table %>%
+  gt() %>%
+  fmt_percent(columns = Conversion_Rate, decimals = 2) %>%
+  tab_header(
+    title = "Baseline Conversion by Product Line"
+  )
+```
+
+
+
+
+*Industry:*
+
+```{r}
+industry_table <- qal_data %>%
+  group_by(acct_target_industry) %>%
+  summarise(
+    Total_Leads = n(),
+    Conversions = sum(progressed),
+    Conversion_Rate = mean(progressed)
+  ) %>%
+  arrange(desc(Conversion_Rate))
+
+industry_table %>%
+  gt() %>%
+  fmt_percent(columns = Conversion_Rate, decimals = 2) %>%
+  tab_header(
+    title = "Conversion Rate by Industry"
+  )
+```
+
+*By Manufacturing Model:*
+
+```{r}
+manufacturing_table <- qal_data %>%
+  group_by(acct_manufacturing_model) %>%
+  summarise(
+    Total_Leads = n(),
+    Conversions = sum(progressed),
+    Conversion_Rate = mean(progressed)
+  ) %>%
+  arrange(desc(Conversion_Rate))
+
+manufacturing_table %>%
+  gt() %>%
+  fmt_percent(columns = Conversion_Rate, decimals = 2) %>%
+  tab_header(
+    title = "Conversion Rate by Manufacturing Model"
+  )
+```
+
+
+
+*BY Tire*
+
+```{r}
+tier_table <- qal_data %>%
+  group_by(acct_tier_rollup) %>%
+  summarise(
+    Total_Leads = n(),
+    Conversions = sum(progressed),
+    Conversion_Rate = mean(progressed)
+  ) %>%
+  arrange(desc(Conversion_Rate))
+
+tier_table %>%
+  gt() %>%
+  fmt_percent(columns = Conversion_Rate, decimals = 2) %>%
+  tab_header(
+    title = "Conversion Rate by Account Tier"
+  )
+```
+
+*By Territory*
+
+
+```{r}
+territory_table <- qal_data %>%
+  group_by(acct_territory_rollup) %>%
+  summarise(
+    Total_Leads = n(),
+    Conversions = sum(progressed),
+    Conversion_Rate = mean(progressed)
+  ) %>%
+  arrange(desc(Conversion_Rate))
+
+territory_table %>%
+  gt() %>%
+  fmt_percent(columns = Conversion_Rate, decimals = 2) %>%
+  tab_header(
+    title = "Conversion Rate by Territory"
+  )
+```
+
+
+## Step 6: Categorical Association 
+
+
+```{r}
+library(rcompanion)
+
+cramer_value <- cramerV(
+  table(qal_data$acct_target_industry, qal_data$progressed)
+)
+
+cramer_table <- data.frame(
+  Variable = "Industry vs Progression",
+  Cramers_V = round(cramer_value, 3)
+)
+
+gt(cramer_table) %>%
+  tab_header(
+    title = "Categorical Association (Cramer's V)"
+  )
+```
+
+
+
+
+
+
+# 6.2 LEVEL 1 — ACCOUNT ANALYSIS:
+
+*Step 1 — Filter to Mx and set up a clean working dataset*
+
+
+->It keeps the analysis aligned with the business goal (Mx underperformance).
+
+```{r}
+# Filter to Mx only
+mx_data <- subset(qal_data, solution_rollup == "Mx")
+
+# Quick checks
+dim(mx_data)
+table(mx_data$progressed)
+prop.table(table(mx_data$progressed))
+```
+
+*Quick visualization: Mx progression (Yes vs No)*
+
+
+```{r}
+library(ggplot2)
+library(scales)
+
+ggplot(mx_data, aes(x = factor(progressed))) +
+  geom_bar() +
+  labs(title = "Mx Lead Progression Distribution",
+       x = "Progressed (0 = No, 1 = Yes)",
+       y = "Count") +
+  theme_minimal()
+```
+
+
+## Step 2 — Applying stability rule (avoid tiny segments)
+
+*this sets a minimum volume threshold so the conclusions are stable.*
+
+```{r}
+MIN_N <- 200
+```
+
+
+## Step 3 — Interaction EDA: Industry × Tier (Mx only)
+
+*This is the first “ICP cluster” view.*
+
+
+```{r}
+library(dplyr)
+
+mx_industry_tier <- mx_data %>%
+  group_by(acct_target_industry, acct_tier_rollup) %>%
+  summarise(
+    Total_Leads = n(),
+    Conversions = sum(progressed),
+    Conversion_Rate = mean(progressed),
+    .groups = "drop"
+  ) %>%
+  filter(Total_Leads >= MIN_N) %>%
+  arrange(desc(Conversion_Rate))
+
+mx_industry_tier
+```
+
+
+*Visualization: Heatmap*
+
+
+```{r}
+
+ggplot(mx_industry_tier,
+       aes(x = acct_tier_rollup,
+           y = acct_target_industry,
+           fill = Conversion_Rate)) +
+  geom_tile() +
+  scale_fill_gradient(
+    low = "lightblue",
+    high = "darkblue",
+    limits = c(0, 0.30),
+    labels = scales::percent
+  ) +
+  labs(title = "Mx Conversion Rate Heatmap: Industry × Tier",
+       x = "Account Tier",
+       y = "Industry",
+       fill = "Conversion") +
+  theme_minimal()
+```
+
+## Step 4 — Interaction EDA: Manufacturing Model × Industry (Mx only)
+
+```{r}
+mx_mfg_industry <- mx_data %>%
+  group_by(acct_manufacturing_model, acct_target_industry) %>%
+  summarise(
+    Total_Leads = n(),
+    Conversions = sum(progressed),
+    Conversion_Rate = mean(progressed),
+    .groups = "drop"
+  ) %>%
+  filter(Total_Leads >= MIN_N) %>%
+  arrange(desc(Conversion_Rate))
+
+mx_mfg_industry
+```
+
+*Visualization*
+
+```{r}
+library(scales)
+
+ggplot(mx_mfg_industry,
+       aes(x = acct_target_industry,
+           y = acct_manufacturing_model,
+           fill = Conversion_Rate)) +
+  
+  geom_tile(color = "white") +
+  
+  geom_text(aes(label = percent(Conversion_Rate, accuracy = 0.1)),
+            size = 3.5,
+            color = "black") +
+  
+  scale_fill_gradient(
+    low = "#FFE5D0",        # light peach
+    high = "#D94801",       # strong orange
+    limits = c(0, 0.30),    # fixed 0%–30% scale
+    labels = percent
+  ) +
+  
+  labs(title = "Mx Conversion Rate Heatmap: Manufacturing Model × Industry",
+       x = "Industry",
+       y = "Manufacturing Model",
+       fill = "Conversion Rate") +
+  
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(face = "bold")
+  )
+```
+
+
+## Step 5 — Quick “Top Segments” table (Rate + Opportunity)
+
+*This prevents from recommending tiny high-rate segments.*
+
+```{r}
+
+mx_industry_tier <- mx_industry_tier %>%
+  mutate(Opportunity_Score = Conversion_Rate * log1p(Total_Leads)) %>%
+  arrange(desc(Opportunity_Score))
+
+head(mx_industry_tier, 10)
+```
+
+
+
+
+# 6.2 TITLE ANALYSIS (Buyer Persona Layer)
+
+
+So far, we have analyzed accounts.
+
+now will see within strong account segments, who actually converts?
+
+Raw title variable has 5,790 unique values — unusable directly.
+
+
+
+## Step 1: Create Seniority
+
+```{r}
+mx_data$title_lower <- tolower(mx_data$contact_lead_title)
+
+mx_data$seniority <- ifelse(grepl("chief|ceo|cfo|cio|cto|coo|president", mx_data$title_lower), "C-Level",
+                      ifelse(grepl("vp|vice president", mx_data$title_lower), "VP",
+                      ifelse(grepl("director|head", mx_data$title_lower), "Director",
+                      ifelse(grepl("manager|lead", mx_data$title_lower), "Manager",
+                      "Other"))))
+```
+
+
+*Analyze:*
+
+```{r}
+aggregate(progressed ~ seniority, data = mx_data, mean)
+```
+
+*Visualization:*
+
+```{r}
+mx_data %>%
+  count(seniority, progressed) %>%
+  group_by(seniority) %>%
+  mutate(prop = n / sum(n)) %>%
+  ggplot(aes(x = seniority,
+             y = prop,
+             fill = factor(progressed))) +
+  
+  geom_bar(stat = "identity", position = "fill") +
+  
+  geom_text(aes(label = percent(prop, accuracy = 0.1)),
+            position = position_fill(vjust = 0.5),
+            color = "white",
+            size = 4) +
+  
+  scale_y_continuous(labels = percent) +
+  
+  labs(title = "Mx Conversion by Seniority",
+       y = "Proportion",
+       fill = "Progressed") +
+  
+  theme_minimal()
+```
+
+
+## Step 2: Create Functional Area
+
+```{r}
+
+mx_data$function_band <- ifelse(grepl("quality|qa|qc", mx_data$title_lower), "Quality",
+                         ifelse(grepl("manufactur|production|plant", mx_data$title_lower), "Manufacturing",
+                         ifelse(grepl("operation|ops", mx_data$title_lower), "Operations",
+                         ifelse(grepl("regulator|compliance", mx_data$title_lower), "Regulatory",
+                         ifelse(grepl("engineer|process", mx_data$title_lower), "Engineering",
+                         "Other")))))
+```
+
+*Aggrigate* 
+
+```{r}
+library(dplyr)
+
+function_summary <- mx_data %>%
+  group_by(function_band) %>%
+  summarise(
+    Total_Leads = n(),
+    Conversions = sum(progressed),
+    Conversion_Rate = mean(progressed),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(Conversion_Rate))
+
+function_summary
+```
+
+
+*Visualization:*
+
+```{r}
+library(ggplot2)
+library(scales)
+
+ggplot(function_summary,
+       aes(x = reorder(function_band, Conversion_Rate),
+           y = Conversion_Rate)) +
+  
+  geom_col(fill = "#F4A261", width = 0.7) +
+  
+  geom_text(aes(label = percent(Conversion_Rate, accuracy = 0.1)),
+            vjust = -0.5,
+            size = 4) +
+  
+  scale_y_continuous(labels = percent,
+                     limits = c(0, 0.40),
+                     expand = expansion(mult = c(0, 0.05))) +
+  
+  coord_flip() +
+  
+  labs(title = "Mx Conversion Rate by Functional Area",
+       x = "Functional Area",
+       y = "Conversion Rate") +
+  
+  theme_minimal(base_size = 12) +
+  theme(plot.title = element_text(face = "bold"))
+```
+
+*Viz -2*
+
+```{r}
+mx_data %>%
+  count(function_band, progressed) %>%
+  group_by(function_band) %>%
+  mutate(prop = n / sum(n)) %>%
+  
+  ggplot(aes(x = function_band,
+             y = prop,
+             fill = factor(progressed))) +
+  
+  geom_bar(stat = "identity", position = "fill") +
+  
+  geom_text(aes(label = percent(prop, accuracy = 0.1)),
+            position = position_fill(vjust = 0.5),
+            size = 3,
+            color = "white") +
+  
+  scale_y_continuous(labels = percent) +
+  
+  scale_fill_manual(values = c("#E76F51", "#2A9D8F"),
+                    labels = c("Not Progressed", "Progressed")) +
+  
+  coord_flip() +
+  
+  labs(title = "Mx Progression by Functional Area",
+       x = "Functional Area",
+       y = "Proportion",
+       fill = "") +
+  
+  theme_minimal()
+```
+
+
+
+
+
+
+
+## LEVEL 3 — CROSS-SELL OPPORTUNITIES
+
+```{r}
+cross_sell <- aggregate(progressed ~ acct_target_industry + solution_rollup,
+                        data = qal_data,
+                        mean)
+```
+
+
+
+```{r}
+
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+industry_conv <- qal_data %>%
+  group_by(solution_rollup, acct_target_industry) %>%
+  summarise(conv_rate = mean(progressed),
+            total = n(),
+            .groups = "drop")
+
+ggplot(industry_conv,
+       aes(x = reorder(acct_target_industry, conv_rate),
+           y = conv_rate,
+           fill = solution_rollup)) +
+  
+  geom_col(position = position_dodge(width = 0.8),
+           width = 0.7) +
+  
+  geom_text(aes(label = percent(conv_rate, accuracy = 0.1)),
+            position = position_dodge(width = 0.8),
+            vjust = -0.5,
+            size = 3.5) +
+  
+  scale_y_continuous(labels = percent,
+                     limits = c(0, 0.5),
+                     expand = expansion(mult = c(0, 0.05))) +
+  
+  scale_fill_manual(values = c(
+    "Ax" = "#6C8EBF",
+    "Mx" = "#F4A261",
+    "Qx" = "#2A9D8F"
+  )) +
+  
+  labs(title = "Conversion Rate by Industry and Product",
+       x = "Industry",
+       y = "Conversion Rate",
+       fill = "Product Line") +
+  
+  coord_flip() +
+  
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    legend.position = "top"
+  )
+```
+
+
+
+# 6.3 Strategic EDA
+
+*What is the Ideal Account + Ideal Persona combination for Mx?*
+
+
+## STEP 1 — Combine Seniority + Function
+
+
+```{r}
+library(dplyr)
+
+persona_summary <- mx_data %>%
+  group_by(seniority, function_band) %>%
+  summarise(
+    Total_Leads = n(),
+    Conversion_Rate = mean(progressed),
+    .groups = "drop"
+  ) %>%
+  filter(Total_Leads >= 100) %>%
+  arrange(desc(Conversion_Rate))
+
+persona_summary
+```
+
+
+
+
+
+
+## STEP 2 — Overlay Account Segment + Persona
+
+```{r}
+mx_data %>%
+  group_by(acct_target_industry,
+           acct_tier_rollup,
+           function_band) %>%
+  summarise(
+    n = n(),
+    conv = mean(progressed),
+    .groups = "drop"
+  ) %>%
+  filter(n >= 200) %>%
+  arrange(desc(conv))
+```
+
+
+
+## STEP 3 — Build a Priority Score
+
+
+```{r}
+library(dplyr)
+
+persona_summary <- mx_data %>%
+  group_by(seniority, function_band) %>%
+  summarise(
+    Total_Leads = n(),
+    Conversions = sum(progressed),
+    Conversion_Rate = mean(progressed),
+    .groups = "drop"
+  ) %>%
+  filter(Total_Leads >= 50)
+
+persona_scored <- persona_summary %>%
+  mutate(
+    priority_score = Conversion_Rate * log1p(Total_Leads)
+  ) %>%
+  arrange(desc(priority_score))
+
+
+persona_scored
+
+```
+
+
+*Visualization*
+
+```{r}
+library(ggplot2)
+library(scales)
+
+ggplot(persona_scored,
+       aes(x = reorder(paste(seniority, function_band, sep = " - "),
+                       priority_score),
+           y = priority_score)) +
+  
+  geom_col(fill = "#D94801") +
+  
+  coord_flip() +
+  
+  labs(title = "Mx Persona Priority Ranking",
+       x = "Seniority - Function",
+       y = "Priority Score") +
+  
+  theme_minimal()
+```
+
+
+
+## STEP 4 — Cross-Sell Overlay
+
+
+
+*Which profiles perform well for BOTH Qx and Mx?*
+
+```{r}
+
+qal_data$title_lower <- tolower(qal_data$contact_lead_title)
+
+qal_data$seniority <- ifelse(grepl("chief|ceo|cfo|cio|cto|coo|president", qal_data$title_lower), "C-Level",
+                      ifelse(grepl("vp|vice president", qal_data$title_lower), "VP",
+                      ifelse(grepl("director|head", qal_data$title_lower), "Director",
+                      ifelse(grepl("manager|lead", qal_data$title_lower), "Manager",
+                      "Other"))))
+
+qal_data$function_band <- ifelse(grepl("quality|qa|qc", qal_data$title_lower), "Quality",
+                          ifelse(grepl("manufactur|production|plant", qal_data$title_lower), "Manufacturing",
+                          ifelse(grepl("operation|ops", qal_data$title_lower), "Operations",
+                          ifelse(grepl("regulator|compliance", qal_data$title_lower), "Regulatory",
+                          ifelse(grepl("engineer|process", qal_data$title_lower), "Engineering",
+                          "Other")))))
+
+
+cross_sell_persona <- qal_data %>%
+  group_by(solution_rollup, function_band) %>%
+  summarise(
+    Total_Leads = n(),
+    Conversion_Rate = mean(progressed),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(Conversion_Rate))
+
+cross_sell_persona
+
+
+
+
+
+
+```
+
+
+
+
+*Viz-1. Cross-Sell Heatmap (Best Visual Insight)*
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+cross_sell_persona <- qal_data %>%
+  group_by(solution_rollup, function_band) %>%
+  summarise(
+    Conversion_Rate = mean(progressed),
+    .groups = "drop"
+  )
+
+ggplot(cross_sell_persona,
+       aes(x = solution_rollup,
+           y = function_band,
+           fill = Conversion_Rate)) +
+  
+  geom_tile(color = "white") +
+  
+  geom_text(aes(label = percent(Conversion_Rate, accuracy = 0.1)),
+            color = "black",
+            size = 4) +
+  
+  scale_fill_gradient(
+    low = "#FDEBD0",
+    high = "#C0392B",
+    limits = c(0, 0.30),
+    labels = percent
+  ) +
+  
+  labs(title = "Cross-Sell Conversion Heatmap: Persona × Product",
+       x = "Product",
+       y = "Functional Area",
+       fill = "Conversion") +
+  
+  theme_minimal()
+```
+
+*Viz-2 Side-by-Side Bar Comparison.*
+
+
+```{r}
+
+
+ggplot(cross_sell_persona,
+       aes(x = function_band,
+           y = Conversion_Rate,
+           fill = solution_rollup)) +
+  
+  geom_col(position = position_dodge(width = 0.8)) +
+  
+  geom_text(aes(label = scales::percent(Conversion_Rate, accuracy = 0.1)),
+            position = position_dodge(width = 0.8),
+            vjust = -0.5,
+            size = 3.5) +
+  
+  scale_y_continuous(labels = scales::percent,
+                     limits = c(0, 0.35),
+                     expand = expansion(mult = c(0, 0.05))) +
+  
+  scale_fill_manual(values = c(
+    "Ax" = "#6C8EBF",
+    "Mx" = "#F4A261",
+    "Qx" = "#2A9D8F"
+  )) +
+  
+  coord_flip() +
+  
+  labs(title = "Persona Conversion Comparison: Mx vs Qx",
+       x = "Functional Area",
+       y = "Conversion Rate",
+       fill = "Product") +
+  
+  theme_minimal()
+
+
+```
+
+
+
+```{r}
+library(rcompanion)
+library(dplyr)
+
+vars <- c("acct_target_industry",
+          "acct_manufacturing_model",
+          "acct_tier_rollup",
+          "acct_territory_rollup",
+          "function_band",
+          "seniority")
+
+cramer_results <- sapply(vars, function(v) {
+  
+  # Ensure variable exists
+  if (!v %in% names(qal_data)) return(NA)
+  
+  # Create contingency table
+  tbl <- table(qal_data[[v]], qal_data$progressed)
+  
+  # Remove zero rows
+  tbl <- tbl[rowSums(tbl) > 0, , drop = FALSE]
+  
+  # Compute Cramer's V
+  cramerV(tbl)
+})
+
+cramer_df <- data.frame(
+  Variable = vars,
+  Cramers_V = round(cramer_results, 3)
+) %>%
+  arrange(desc(Cramers_V))
+
+cramer_df
+```
+
+
+
+
+*Viz-4*
+
+
+```{r}
+
+ggplot(cramer_df,
+       aes(x = reorder(Variable, Cramers_V),
+           y = Cramers_V)) +
+  
+  geom_col(fill = "#2A9D8F", width = 0.7) +
+  
+  geom_text(aes(label = Cramers_V),
+            vjust = -0.4,
+            size = 4) +
+  
+  coord_flip() +
+  
+  labs(title = "Strength of Association with Progression (Cramer's V)",
+       x = "Variable",
+       y = "Cramer's V") +
+  
+  theme_minimal(base_size = 12)
+
+```
+
+
+
+Value       Interpretation
+
+0.00–0.10   Weak
+0.10–0.30   Moderate
+0.30        Strong
+
+
+
+# 7.  Conclusion: Exploratory Data Analysis Findings
+
+
+This exploratory analysis was conducted to understand which types of accounts and buyer profiles are most likely to progress in the MasterControl QAL pipeline, with particular attention to the underperformance of Mx compared to Qx.
+
+Overall Product Performance
+
+The analysis confirms that Qx consistently achieves higher progression rates than Mx. This validates the business concern that Mx requires more focused targeting and segmentation to improve performance.
+
+
+### *Level 1: Account Analysis*
+
+Among all account-level variables examined, manufacturing model emerged as the strongest driver of progression. It showed a substantially higher association with progression compared to industry, tier, or territory.
+
+Accounts operating under in-house or contract manufacturing models demonstrated stronger progression behavior than services or consulting-focused organizations. This suggests that how a company manufactures is more predictive of engagement than the industry label alone.
+
+Company size (tier) showed a moderate effect, while geography and industry had relatively weak standalone influence. This indicates that targeting based solely on industry or region may not be sufficient for improving Mx performance.
+
+In practical terms, manufacturing structure should be the primary segmentation axis for account targeting.
+
+
+### *Level 2: Title Analysis*
+
+After standardizing job titles into seniority levels and functional areas, several patterns became clear.
+
+Mid-to-senior operational roles — particularly Directors and Managers — showed stronger progression than C-level titles. This suggests that operational decision-makers may be more directly involved in product evaluation and purchasing processes.
+
+From a functional perspective, roles in Quality, Manufacturing, and Operations tended to convert more consistently than other areas. While persona factors are not as strong as manufacturing model, they meaningfully refine targeting within high-potential accounts.
+
+This indicates that the ideal buyer profile is not necessarily executive leadership, but rather operational leaders who manage quality and production processes.
+
+
+### *Level 3: Cross-Sell Opportunities*
+
+When comparing Mx and Qx across personas and account segments, several interesting patterns emerged.
+
+Certain functional roles perform well across both products, indicating potential universal high-converting profiles. In other cases, segments that convert strongly for Qx show weaker performance for Mx, suggesting untapped cross-sell potential.
+
+This cross-product comparison highlights opportunities to leverage existing Qx success patterns to strengthen Mx positioning within similar account structures.
+
+
+### *Integrated Insight*
+
+Bringing these findings together, the most promising Mx prospects tend to share the following characteristics:
+
+	•	Accounts with in-house or contract manufacturing structures
+	•	Small to mid-sized organizations in several high-performing segments
+	•	Operational decision-makers at the Director or Manager level
+	•	Functional focus in Quality, Manufacturing, or Operations
+
+Manufacturing model appears to be the primary driver, with persona characteristics acting as an important refinement layer.
+
+
+### *Final Implications*
+
+This EDA establishes a clear, data-supported direction for improving Mx targeting strategy:
+
+	1.	Prioritize accounts based on manufacturing model rather than industry alone.
+	2.	Focus outreach efforts on operational leaders rather than exclusively targeting C-level executives.
+	3.	Use persona segmentation to refine engagement within high-potential account types.
+	4.	Leverage cross-sell patterns observed in Qx to strengthen Mx positioning.
+
+The dataset is now well-prepared for the next stage, which may include predictive modeling or structured lead scoring to further validate and operationalize these findings.
+
+
+
+
+
