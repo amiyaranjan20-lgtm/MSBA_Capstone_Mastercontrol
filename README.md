@@ -76,9 +76,7 @@ This included:
 The EDA phase provided the foundation for informed preprocessing decisions and helped guide the modeling strategy.
 
 
-The full exploratory analysis can be found in:
 
-`EDA-MasterControl-Amiya_updated-03-19.html`
 
 ---
 
