@@ -119,9 +119,6 @@ Models evaluated include:
 
 Each model was trained using consistent preprocessing and evaluation methods to ensure fair comparison.
 
-The complete modeling workflow can be found in:
-
-`Modeling_Mastercontrol_Group_5_Final.html`
 
 ---
 
