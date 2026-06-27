@@ -244,10 +244,10 @@ These insights support the development of a **data-driven targeting strategy for
 - `Business Problem Statement(Group 5).pdf`  
   Overview of the business problem, project objectives, and success metrics.
 
-- `EDA-MasterControl-Amiya_updated-03-19.html`  
+- `EDA-MasterControl-Amiya_updated-03-19`  
   Exploratory data analysis examining distributions, patterns, and early signals in the data.
 
-- `Modeling_Mastercontrol_Group_5_Final.html`  
+- `Modeling_Mastercontrol_Group_5_Final`  
   Full predictive modeling workflow including feature preparation, model training, and evaluation.
   
   `Group 5 Presentation.pdf`
